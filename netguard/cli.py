@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timezone
 
 from . import __version__
+from .database import Database
 from .discovery import discover
 from .findings import map_findings
 from .models import ScanReport
@@ -18,6 +19,9 @@ def _common_arguments(parser):
     parser.add_argument("--workers", type=int, default=64, help="maximum concurrent probes (1-256)")
     parser.add_argument("--format", choices=("auto", "json", "csv", "html"), default="auto")
     parser.add_argument("--output", help="report path; stdout is used when omitted")
+    parser.add_argument("--db", default="~/.netguard/netguard.db",
+                        help="SQLite evidence database path")
+    parser.add_argument("--no-store", action="store_true", help="do not store this scan in SQLite")
 
 
 def build_parser():
@@ -44,6 +48,16 @@ def build_parser():
     audit_parser.add_argument("--ports", default="common")
     audit_parser.add_argument("--banner", action="store_true")
     _common_arguments(audit_parser)
+    history_parser = subparsers.add_parser("history", help="show stored scan history")
+    history_parser.add_argument("--target")
+    history_parser.add_argument("--limit", type=int, default=20)
+    history_parser.add_argument("--db", default="~/.netguard/netguard.db")
+    history_parser.add_argument("--format", choices=("json", "text"), default="text")
+    monitor_parser = subparsers.add_parser("monitor", help="scan and show changes since the previous scan")
+    monitor_parser.add_argument("target")
+    monitor_parser.add_argument("--ports", default="common")
+    monitor_parser.add_argument("--banner", action="store_true")
+    _common_arguments(monitor_parser)
     return parser
 
 
@@ -77,7 +91,17 @@ def _make_report(command, target, ports=None, hosts=None, findings=None, started
     )
 
 
-def _run_scan(args, audit=False):
+def _persist(report, args):
+    if getattr(args, "no_store", False):
+        return
+    database = Database(args.db)
+    try:
+        database.save_report(report)
+    finally:
+        database.close()
+
+
+def _run_scan(args, audit=False, previous=None):
     resolved_addresses = _validate_target(args.target)
     ports = parse_ports(args.ports)
     started_at = datetime.now(timezone.utc).isoformat()
@@ -87,7 +111,9 @@ def _run_scan(args, audit=False):
                           findings=map_findings(results) if audit else [], started=started_at)
     report.resolved_addresses = resolved_addresses
     report.ports_requested = ports
+    _persist(report, args)
     write_report(report, args.format, args.output)
+    return report
 
 
 def _run_discover(args):
@@ -96,7 +122,48 @@ def _run_discover(args):
     hosts = discover(args.cidr, args.timeout, args.workers)
     target = args.cidr or "local network"
     report = _make_report("discover", target, hosts=hosts, started=started_at)
+    _persist(report, args)
     write_report(report, args.format, args.output)
+
+
+def _run_history(args):
+    database = Database(args.db)
+    try:
+        rows = database.history(args.target, args.limit)
+    finally:
+        database.close()
+    if args.format == "json":
+        import json
+        print(json.dumps(rows, indent=2))
+    else:
+        for row in rows:
+            print(f"{row['id']:>5} {row['started_at']} {row['target']} "
+                  f"{row['scan_type']} {row['evidence_sha256']}")
+
+
+def _run_monitor(args):
+    database = Database(args.db)
+    try:
+        previous = database.latest_report(args.target)
+    finally:
+        database.close()
+    report = _run_scan(args, audit=True, previous=previous)
+    current_ports = {item.port for item in report.ports if item.state == "open"}
+    old_ports = {
+        item["port"] for item in (previous or {}).get("ports", [])
+        if item.get("state") == "open"
+    }
+    changes = {
+        "target": args.target,
+        "previous_scan": (previous or {}).get("started_at"),
+        "current_scan": report.started_at,
+        "opened": sorted(current_ports - old_ports),
+        "closed": sorted(old_ports - current_ports),
+        "evidence_sha256": report.evidence_sha256,
+    }
+    if not args.output:
+        import json
+        print(json.dumps(changes, indent=2))
 
 
 def interactive():
@@ -106,13 +173,15 @@ def interactive():
     if choice == "1":
         cidr = input("CIDR (blank for local /24): ").strip() or None
         timeout = float(input("Timeout seconds [0.35]: ").strip() or "0.35")
-        _run_discover(argparse.Namespace(cidr=cidr, timeout=timeout, workers=64, format="json", output=None))
+        _run_discover(argparse.Namespace(cidr=cidr, timeout=timeout, workers=64, format="json",
+                                         output=None, db="~/.netguard/netguard.db", no_store=False))
     elif choice in {"2", "3"}:
         target = input("Target hostname/IP: ").strip()
         ports = input("Ports [common]: ").strip() or "common"
         banner = input("Collect banners? [y/N]: ").strip().lower() == "y"
         args = argparse.Namespace(target=target, ports=ports, banner=banner, timeout=0.8,
-                                  workers=64, format="json", output=None)
+                                  workers=64, format="json", output=None,
+                                  db="~/.netguard/netguard.db", no_store=False)
         _run_scan(args, audit=choice == "3")
 
 
@@ -124,6 +193,10 @@ def main(argv=None):
             return interactive()
         if args.command == "discover":
             return _run_discover(args)
+        if args.command == "history":
+            return _run_history(args)
+        if args.command == "monitor":
+            return _run_monitor(args)
         return _run_scan(args, audit=args.command == "audit")
     except (ValueError, OSError, socket.gaierror) as exc:
         parser.error(str(exc))

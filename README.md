@@ -5,6 +5,8 @@ NETGUARD-CLI is a dependency-free Python command-line tool for **authorized** ne
 - LAN host discovery using the local ARP cache plus bounded TCP probes.
 - Concurrent TCP connect scanning with service identification and optional safe banner collection.
 - Educational exposure mapping with CVSS v3.1 scores and remediation guidance.
+- Evidence-backed HTTP/TLS service fingerprinting with confidence scores.
+- SQLite persistence for scan history, asset inventory, evidence hashes, and change monitoring.
 - JSON, CSV, and self-contained HTML reports.
 - A non-interactive CLI for automation and an interactive menu for guided use.
 
@@ -21,6 +23,8 @@ python -m netguard --help
 python -m netguard discover --cidr 192.168.1.0/24
 python -m netguard scan 192.168.1.10 --ports common --banner --format html --output report.html
 python -m netguard audit 192.168.1.10 --ports 22,80,443,3389 --output audit.json
+python -m netguard monitor 192.168.1.10 --ports common --db ~/.netguard/netguard.db
+python -m netguard history --target 192.168.1.10 --db ~/.netguard/netguard.db --format json
 ```
 
 Installing locally exposes the `netguard` command:
@@ -59,9 +63,29 @@ Runs a port scan and adds educational exposure findings. Findings indicate that 
 netguard audit 10.0.0.5 --ports common --format html --output audit.html
 ```
 
+### `monitor` and `history`
+
+Every scan and audit is stored in SQLite by default at `~/.netguard/netguard.db`.
+The database contains the raw JSON report, UTC timestamp, target, open-port inventory,
+fingerprints, and a SHA-256 evidence hash. Use `monitor` to compare the current open
+ports with the previous stored scan:
+
+```bash
+netguard monitor 10.0.0.5 --ports common
+netguard history --target 10.0.0.5 --format json
+```
+
+Use `--db /path/file.db` for a project-specific database or `--no-store` for an
+ephemeral scan. `monitor` reports newly opened and closed TCP ports; an empty change
+set is still meaningful because the current evidence hash and timestamp are recorded.
+
 ## Output
 
-Without `--output`, results are printed to the terminal. With an output path, JSON, CSV, or HTML is written according to `--format` (or inferred from the file extension). Reports include scan timestamps, target resolution, elapsed time, requested ports, observed states, raw probe errors, open ports, and findings. A `filtered` state means the connection timed out; it must not be interpreted as proof that a port is closed. Findings are reachability-based defensive indicators, not claims that a CVE was exploited or verified.
+Without `--output`, results are printed to the terminal. With an output path, JSON, CSV, or HTML is written according to `--format` (or inferred from the file extension). Reports include scan timestamps, target resolution, elapsed time, requested ports, observed states, raw probe errors, open ports, fingerprints, evidence hash, and findings. HTTP fingerprints are taken from live response headers; TLS fingerprints are taken from a live handshake and peer certificate. A `filtered` state means the connection timed out; it must not be interpreted as proof that a port is closed. Findings are reachability-based defensive indicators, not claims that a CVE was exploited or verified.
+
+NETGUARD deliberately does not invent CVE matches from port numbers. Reliable CVE
+matching requires a verified product/version or CPE. Future enrichment can be added
+without weakening this evidence rule.
 
 ## Legal and safety notice
 

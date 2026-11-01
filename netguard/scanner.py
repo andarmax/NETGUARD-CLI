@@ -5,6 +5,7 @@ from typing import Iterable, List
 
 from .models import PortResult
 from .ports import service_name
+from .fingerprint import fingerprint_port
 
 
 def _clean_banner(data: bytes) -> str:
@@ -26,6 +27,7 @@ def _probe(host: str, port: int, timeout: float, grab_banner: bool) -> PortResul
                     result.banner = _clean_banner(sock.recv(512))
                 except socket.timeout:
                     pass
+            fingerprint_port(host, result, timeout, generic_http=grab_banner)
     except socket.timeout:
         result.state = "filtered"
         result.error = "timeout"
