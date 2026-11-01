@@ -61,7 +61,7 @@ netguard audit 10.0.0.5 --ports common --format html --output audit.html
 
 ## Output
 
-Without `--output`, results are printed to the terminal. With an output path, JSON, CSV, or HTML is written according to `--format` (or inferred from the file extension). Reports include scan timestamps, target, elapsed time, open ports, and findings.
+Without `--output`, results are printed to the terminal. With an output path, JSON, CSV, or HTML is written according to `--format` (or inferred from the file extension). Reports include scan timestamps, target resolution, elapsed time, requested ports, observed states, raw probe errors, open ports, and findings. A `filtered` state means the connection timed out; it must not be interpreted as proof that a port is closed. Findings are reachability-based defensive indicators, not claims that a CVE was exploited or verified.
 
 ## Legal and safety notice
 

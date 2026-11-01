@@ -66,6 +66,8 @@ def render(report: ScanReport, format_name: str) -> str:
         return f"""<!doctype html><meta charset="utf-8"><title>NETGUARD report</title>
 <style>body{{font:14px system-ui;margin:2rem;color:#17202a}}table{{border-collapse:collapse;width:100%;margin:1rem 0 2rem}}td,th{{border:1px solid #ccd;padding:.45rem;text-align:left}}th{{background:#eef}}code{{white-space:pre-wrap}}</style>
 <h1>NETGUARD-CLI audit report</h1><p><b>Target:</b> {html.escape(payload['target'])}
+<br><b>Resolved:</b> {html.escape(", ".join(payload['resolved_addresses']) or "not applicable")}
+<br><b>Probe:</b> {html.escape(payload['probe'])}
 <br><b>Started:</b> {html.escape(payload['started_at'])}
 <br><b>Duration:</b> {payload['duration_seconds']:.2f}s</p>
 <h2>Hosts</h2><table><tr><th>Address</th><th>Hostname</th><th>Method</th><th>Responsive</th><th>Latency ms</th></tr>{host_rows}</table>
