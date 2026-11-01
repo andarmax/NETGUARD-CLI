@@ -1,7 +1,6 @@
 import argparse
 import ipaddress
 import socket
-import sys
 import time
 from datetime import datetime, timezone
 

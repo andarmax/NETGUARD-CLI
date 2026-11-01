@@ -3,7 +3,6 @@ import html
 import json
 import os
 import sys
-from dataclasses import asdict
 from typing import Any, Dict
 
 from .models import ScanReport
