@@ -8,6 +8,12 @@ from typing import Any, Dict
 from .models import ScanReport
 
 
+def _spreadsheet_safe(value: Any) -> Any:
+    if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"}:
+        return "'" + value
+    return value
+
+
 def _payload(report: ScanReport) -> Dict[str, Any]:
     return report.to_dict()
 
@@ -27,8 +33,9 @@ def render(report: ScanReport, format_name: str) -> str:
         if payload["scan_type"] == "discover":
             rows = [["address", "hostname", "method", "responsive", "latency_ms", "error"]]
             rows.extend([
-                [host["address"], host["hostname"] or "", host["method"], host["responsive"],
-                 host["latency_ms"] or "", host["error"] or ""]
+                [_spreadsheet_safe(host["address"]), _spreadsheet_safe(host["hostname"] or ""),
+                 _spreadsheet_safe(host["method"]), host["responsive"],
+                 host["latency_ms"] or "", _spreadsheet_safe(host["error"] or "")]
                 for host in payload["hosts"]
             ])
             from io import StringIO
@@ -38,9 +45,11 @@ def render(report: ScanReport, format_name: str) -> str:
         rows = [["port", "protocol", "state", "service", "product", "banner",
                  "fingerprint", "fingerprint_confidence", "latency_ms", "error"]]
         rows.extend([
-            [p["port"], p["protocol"], p["state"], p["service"], p["product"] or "",
-             p["banner"] or "", p["fingerprint"] or "", p["fingerprint_confidence"] or "",
-             p["latency_ms"] or "", p["error"] or ""]
+            [p["port"], _spreadsheet_safe(p["protocol"]), _spreadsheet_safe(p["state"]),
+             _spreadsheet_safe(p["service"]), _spreadsheet_safe(p["product"] or ""),
+             _spreadsheet_safe(p["banner"] or ""), _spreadsheet_safe(p["fingerprint"] or ""),
+             p["fingerprint_confidence"] or "", p["latency_ms"] or "",
+             _spreadsheet_safe(p["error"] or "")]
             for p in payload["ports"]
         ])
         from io import StringIO

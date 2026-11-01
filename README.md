@@ -168,7 +168,7 @@ Each report records:
 ### Fingerprinting
 
 - HTTP fingerprints are extracted from live response headers.
-- HTTPS fingerprints use a live TLS handshake and peer certificate where possible.
+- HTTPS fingerprints use a live TLS handshake and SHA-256 hash of the peer certificate where possible. Certificate verification is intentionally disabled for inventory of self-signed services; the result is evidence of what was presented, not proof of trusted identity.
 - Fingerprints include a confidence score and are never presented as certainty when evidence is incomplete.
 
 Example evidence fragment:
@@ -201,6 +201,10 @@ Best for spreadsheets and quick operational review.
 ```bash
 netguard scan 127.0.0.1 --ports common --format csv --output scan.csv
 ```
+
+CSV fields derived from network responses are escaped against spreadsheet formula
+injection. Treat reports as potentially sensitive because they may contain hostnames,
+service banners, and certificate metadata.
 
 ### HTML
 
@@ -241,6 +245,9 @@ python -m pip install .
 ```
 
 The test suite covers port parsing, finding rules, report rendering, evidence metadata, and SQLite persistence.
+
+GitHub Actions runs the unit tests, package compilation, and whitespace checks for
+pushes and pull requests.
 
 ## Roadmap
 
