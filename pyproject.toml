@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netguard-cli"
+version = "1.0.0"
+description = "Authorized LAN discovery and network exposure auditing CLI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "andarmax"}]
+dependencies = []
+
+[project.scripts]
+netguard = "netguard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["netguard*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
