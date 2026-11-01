@@ -20,6 +20,8 @@ class PortResult:
     service: str = "unknown"
     product: Optional[str] = None
     banner: Optional[str] = None
+    fingerprint: Optional[str] = None
+    fingerprint_confidence: Optional[float] = None
     latency_ms: Optional[float] = None
     error: Optional[str] = None
 
@@ -48,6 +50,7 @@ class ScanReport:
     ports: List[PortResult] = field(default_factory=list)
     hosts: List[HostResult] = field(default_factory=list)
     findings: List[Finding] = field(default_factory=list)
+    evidence_sha256: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -35,10 +35,12 @@ def render(report: ScanReport, format_name: str) -> str:
             stream = StringIO()
             csv.writer(stream).writerows(rows)
             return stream.getvalue().rstrip()
-        rows = [["port", "protocol", "state", "service", "product", "banner", "latency_ms", "error"]]
+        rows = [["port", "protocol", "state", "service", "product", "banner",
+                 "fingerprint", "fingerprint_confidence", "latency_ms", "error"]]
         rows.extend([
             [p["port"], p["protocol"], p["state"], p["service"], p["product"] or "",
-             p["banner"] or "", p["latency_ms"] or "", p["error"] or ""]
+             p["banner"] or "", p["fingerprint"] or "", p["fingerprint_confidence"] or "",
+             p["latency_ms"] or "", p["error"] or ""]
             for p in payload["ports"]
         ])
         from io import StringIO
@@ -48,7 +50,9 @@ def render(report: ScanReport, format_name: str) -> str:
     if format_name == "html":
         port_rows = "".join(
             "<tr>" + "".join(f"<td>{html.escape(str(p[key] or ''))}</td>"
-                              for key in ("port", "protocol", "state", "service", "banner", "latency_ms")) + "</tr>"
+                              for key in ("port", "protocol", "state", "service", "product",
+                                          "fingerprint", "fingerprint_confidence", "banner",
+                                          "latency_ms")) + "</tr>"
             for p in payload["ports"]
         )
         host_rows = "".join(
@@ -70,7 +74,7 @@ def render(report: ScanReport, format_name: str) -> str:
 <br><b>Started:</b> {html.escape(payload['started_at'])}
 <br><b>Duration:</b> {payload['duration_seconds']:.2f}s</p>
 <h2>Hosts</h2><table><tr><th>Address</th><th>Hostname</th><th>Method</th><th>Responsive</th><th>Latency ms</th></tr>{host_rows}</table>
-<h2>Ports</h2><table><tr><th>Port</th><th>Protocol</th><th>State</th><th>Service</th><th>Banner</th><th>Latency ms</th></tr>{port_rows or "<tr><td colspan='6'>No ports scanned.</td></tr>"}</table>
+<h2>Ports</h2><table><tr><th>Port</th><th>Protocol</th><th>State</th><th>Service</th><th>Product</th><th>Fingerprint</th><th>Confidence</th><th>Banner</th><th>Latency ms</th></tr>{port_rows or "<tr><td colspan='9'>No ports scanned.</td></tr>"}</table>
 <h2>Educational exposure mapping</h2><table><tr><th>Severity</th><th>CVSS</th><th>Finding</th><th>Evidence</th><th>Recommendation</th></tr>{finding_rows}</table>
 <p><small>Reachability is evidence of exposure, not proof of a vulnerability. Scan only authorized systems.</small></p>"""
     raise ValueError(f"unsupported output format: {format_name}")
