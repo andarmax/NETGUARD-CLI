@@ -42,6 +42,9 @@ class ScanReport:
     target: str
     started_at: str
     duration_seconds: float
+    resolved_addresses: List[str] = field(default_factory=list)
+    probe: str = "TCP connect"
+    ports_requested: List[int] = field(default_factory=list)
     ports: List[PortResult] = field(default_factory=list)
     hosts: List[HostResult] = field(default_factory=list)
     findings: List[Finding] = field(default_factory=list)

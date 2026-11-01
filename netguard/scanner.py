@@ -27,10 +27,12 @@ def _probe(host: str, port: int, timeout: float, grab_banner: bool) -> PortResul
                 except socket.timeout:
                     pass
     except socket.timeout:
+        result.state = "filtered"
         result.error = "timeout"
     except ConnectionRefusedError:
         result.error = "refused"
     except OSError as exc:
+        result.state = "error"
         result.error = str(exc)
     return result
 

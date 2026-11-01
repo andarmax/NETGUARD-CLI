@@ -1,7 +1,6 @@
 import argparse
 import ipaddress
 import socket
-import sys
 import time
 from datetime import datetime, timezone
 
@@ -53,8 +52,15 @@ def _validate_target(target):
         raise ValueError("target must be a hostname or IP address without whitespace")
     try:
         ipaddress.ip_address(target)
+        return [target]
     except ValueError:
-        socket.getaddrinfo(target, None, type=socket.SOCK_STREAM)
+        addresses = {
+            entry[4][0]
+            for entry in socket.getaddrinfo(target, None, type=socket.SOCK_STREAM)
+        }
+        if not addresses:
+            raise ValueError(f"target did not resolve: {target}")
+        return sorted(addresses)
 
 
 def _make_report(command, target, ports=None, hosts=None, findings=None, started=None):
@@ -72,13 +78,15 @@ def _make_report(command, target, ports=None, hosts=None, findings=None, started
 
 
 def _run_scan(args, audit=False):
-    _validate_target(args.target)
+    resolved_addresses = _validate_target(args.target)
     ports = parse_ports(args.ports)
     started_at = datetime.now(timezone.utc).isoformat()
     _make_report.started = time.monotonic()
     results = scan_ports(args.target, ports, args.timeout, args.workers, args.banner)
     report = _make_report("audit" if audit else "scan", args.target, ports=results,
                           findings=map_findings(results) if audit else [], started=started_at)
+    report.resolved_addresses = resolved_addresses
+    report.ports_requested = ports
     write_report(report, args.format, args.output)
 
 
