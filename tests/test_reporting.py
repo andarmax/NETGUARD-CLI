@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from netguard.models import ScanReport
+from netguard.models import PortResult, ScanReport
 from netguard.reporting import render
 
 
@@ -29,6 +29,15 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(payload["resolved_addresses"], ["192.168.1.1"])
         self.assertEqual(payload["ports_requested"], [22, 80])
         self.assertEqual(payload["probe"], "TCP connect")
+
+    def test_csv_neutralizes_spreadsheet_formulas(self):
+        report = ScanReport(
+            "NETGUARD-CLI", "1.0.0", "scan", "127.0.0.1",
+            "2026-01-01T00:00:00+00:00", 0.1,
+            ports=[PortResult(80, state="open", banner="=HYPERLINK(\"https://evil\")")],
+        )
+        csv_output = render(report, "csv")
+        self.assertIn("'=HYPERLINK", csv_output)
 
 
 if __name__ == "__main__":

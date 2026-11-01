@@ -38,6 +38,10 @@ def build_parser():
     discover_parser.add_argument("--workers", type=int, default=64)
     discover_parser.add_argument("--format", choices=("auto", "json", "csv", "html"), default="json")
     discover_parser.add_argument("--output")
+    discover_parser.add_argument("--db", default="~/.netguard/netguard.db",
+                                 help="SQLite evidence database path")
+    discover_parser.add_argument("--no-store", action="store_true",
+                                 help="do not store this discovery in SQLite")
     scan_parser = subparsers.add_parser("scan", help="scan TCP ports on one host")
     scan_parser.add_argument("target")
     scan_parser.add_argument("--ports", default="common")

@@ -1,6 +1,7 @@
 import re
 import socket
 import ssl
+import hashlib
 from typing import Optional, Tuple
 
 from .models import PortResult
@@ -29,6 +30,7 @@ def _tls_fingerprint(host: str, port: int, timeout: float) -> Tuple[Optional[str
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname=host) as tls:
+                certificate_der = tls.getpeercert(binary_form=True)
                 certificate = tls.getpeercert()
                 subject = certificate.get("subject", ())
                 common_name = next(
@@ -36,7 +38,8 @@ def _tls_fingerprint(host: str, port: int, timeout: float) -> Tuple[Optional[str
                     None,
                 )
                 cipher = tls.cipher()
-                detail = f"TLS {tls.version()}"
+                certificate_hash = hashlib.sha256(certificate_der).hexdigest()
+                detail = f"TLS {tls.version()}, cert-sha256={certificate_hash}"
                 if cipher:
                     detail += f", {cipher[0]}"
                 if common_name:
@@ -50,12 +53,10 @@ def fingerprint_port(host: str, result: PortResult, timeout: float,
                      generic_http: bool = False) -> PortResult:
     if result.state != "open":
         return result
-    if result.port in {80, 8000, 8080, 8443} or generic_http:
-        detail, source = _http_fingerprint(host, result.port, timeout)
-    elif result.port == 443:
+    if result.port == 443:
         detail, source = _tls_fingerprint(host, result.port, timeout)
-        if not detail:
-            detail, source = _http_fingerprint(host, result.port, timeout)
+    elif result.port in {80, 8000, 8080, 8443} or generic_http:
+        detail, source = _http_fingerprint(host, result.port, timeout)
     else:
         detail, source = None, None
     if detail:
